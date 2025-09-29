@@ -6,7 +6,7 @@ architecture, CAS operations, TTL support, and comprehensive observability.
 ## Features
 
 - 🚀 **High Performance**: Sub-25ms p95 latency for GET operations
-- 🔧 **Sharded Architecture**: Horizontal scaling with jump consistent hashing
+- 🔧 **Sharded Architecture**: Horizontal scaling with hashing
 - 🔒 **CAS Operations**: Compare-and-swap for safe concurrent updates
 - ⏰ **TTL Support**: Per-key expiration with efficient background cleanup
 - 📊 **Rich Observability**: Prometheus metrics, structured logging, tracing hooks
@@ -366,7 +366,7 @@ npm run stress
 
 The cache uses a sharded architecture for horizontal scalability:
 
-- Keys are distributed across N shards using jump consistent hashing
+- Keys are distributed across N shards using key hashing
 - Each shard operates independently with its own LRU and TTL heap
 - Operations are queued per-shard to avoid cross-shard locks
 - Read operations use a fast path without queuing

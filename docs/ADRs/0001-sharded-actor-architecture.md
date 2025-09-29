@@ -14,7 +14,7 @@ provide clear interfaces for future multi-node clustering.
 
 We will implement a sharded architecture where:
 
-1. **Sharding Strategy**: Use jump consistent hashing to distribute keys across N shards
+1. **Sharding Strategy**: Use simple hashing to distribute keys across N shards
 2. **Actor Model**: Each shard operates as an independent actor with its own mailbox
 3. **Concurrency Control**: Serialize mutations per shard while allowing concurrent reads
 4. **Lock-Free Reads**: Implement fast-path reads without queuing or locking
@@ -28,9 +28,8 @@ We will implement a sharded architecture where:
 - **Cache Locality**: Related operations often hit the same shard
 - **Future-Proof**: Easy to extend to multi-node clustering
 
-### Jump Consistent Hashing
+### Hashing
 
-- **Minimal Remapping**: Only K/N keys need remapping when shard count changes
 - **Deterministic**: Same key always maps to same shard
 - **Load Balancing**: Provides good distribution across shards
 
@@ -53,7 +52,7 @@ We will implement a sharded architecture where:
 
 ```typescript
 function getShardForKey(key: string, numShards: number): number {
-  return jumpConsistentHash(key, numShards);
+  return simpleHash(key, numShards);
 }
 ```
 
