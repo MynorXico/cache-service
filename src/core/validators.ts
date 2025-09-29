@@ -75,7 +75,11 @@ export function inferValueType(value: unknown): ValueType {
   if (typeof value === 'boolean') {
     return 'boolean';
   }
-  if (value !== null && value !== undefined && (typeof value === 'object' || Array.isArray(value))) {
+  if (
+    value !== null &&
+    value !== undefined &&
+    (typeof value === 'object' || Array.isArray(value))
+  ) {
     return 'json';
   }
   // Default to string for null, undefined, or other edge cases

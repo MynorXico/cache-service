@@ -19,7 +19,7 @@ describe('CacheStore CAS Operations', () => {
 
   describe('If-None-Match (Create Only)', () => {
     it('should create new key with If-None-Match: *', async () => {
-      const result = await store.set('new-key', 'value', 'string', undefined, undefined, true);
+      const result = await store.set('new-key', 'value', undefined, undefined, true);
 
       expect(result.version).toBeDefined();
 
@@ -30,11 +30,11 @@ describe('CacheStore CAS Operations', () => {
 
     it('should fail to create existing key with If-None-Match: *', async () => {
       // First create the key
-      await store.set('existing-key', 'original', 'string');
+      await store.set('existing-key', 'original');
 
       // Try to create again with If-None-Match
       await expect(
-        store.set('existing-key', 'new-value', 'string', undefined, undefined, true)
+        store.set('existing-key', 'new-value', undefined, undefined, true)
       ).rejects.toThrow(ConflictError);
 
       // Original value should remain
@@ -46,13 +46,12 @@ describe('CacheStore CAS Operations', () => {
   describe('If-Match (Conditional Update)', () => {
     it('should update key with correct version', async () => {
       // Create initial key
-      const createResult = await store.set('test-key', 'original', 'string');
+      const createResult = await store.set('test-key', 'original');
 
       // Update with correct version
       const updateResult = await store.set(
         'test-key',
         'updated',
-        'string',
         undefined,
         createResult.version
       );
@@ -66,11 +65,11 @@ describe('CacheStore CAS Operations', () => {
 
     it('should fail to update with incorrect version', async () => {
       // Create initial key
-      const createResult = await store.set('test-key', 'original', 'string');
+      const createResult = await store.set('test-key', 'original');
 
       // Try to update with wrong version
       await expect(
-        store.set('test-key', 'updated', 'string', undefined, 'wrong-version')
+        store.set('test-key', 'updated', undefined, 'wrong-version')
       ).rejects.toThrow(ConflictError);
 
       // Original value should remain
@@ -81,15 +80,15 @@ describe('CacheStore CAS Operations', () => {
 
     it('should fail to update non-existent key with If-Match', async () => {
       await expect(
-        store.set('non-existent', 'value', 'string', undefined, 'some-version')
+        store.set('non-existent', 'value', undefined, 'some-version')
       ).rejects.toThrow(ConflictError);
     });
 
     it('should provide detailed error information on version mismatch', async () => {
-      const createResult = await store.set('test-key', 'original', 'string');
+      const createResult = await store.set('test-key', 'original');
 
       try {
-        await store.set('test-key', 'updated', 'string', undefined, 'wrong-version');
+        await store.set('test-key', 'updated', undefined, 'wrong-version');
         expect.fail('Should have thrown ConflictError');
       } catch (error) {
         expect(error).toBeInstanceOf(ConflictError);
@@ -105,7 +104,7 @@ describe('CacheStore CAS Operations', () => {
 
   describe('Delete with If-Match', () => {
     it('should delete key with correct version', async () => {
-      const createResult = await store.set('test-key', 'value', 'string');
+      const createResult = await store.set('test-key', 'value');
 
       const deleted = await store.delete('test-key', createResult.version);
       expect(deleted).toBe(true);
@@ -115,7 +114,7 @@ describe('CacheStore CAS Operations', () => {
     });
 
     it('should fail to delete with incorrect version', async () => {
-      const createResult = await store.set('test-key', 'value', 'string');
+      const createResult = await store.set('test-key', 'value');
 
       await expect(store.delete('test-key', 'wrong-version')).rejects.toThrow(ConflictError);
 
@@ -126,7 +125,7 @@ describe('CacheStore CAS Operations', () => {
     });
 
     it('should delete without version check when no If-Match provided', async () => {
-      await store.set('test-key', 'value', 'string');
+      await store.set('test-key', 'value');
 
       const deleted = await store.delete('test-key');
       expect(deleted).toBe(true);
@@ -138,13 +137,12 @@ describe('CacheStore CAS Operations', () => {
 
   describe('Concurrent CAS Operations', () => {
     it('should handle concurrent updates correctly', async () => {
-      const createResult = await store.set('concurrent-key', 'original', 'string');
+      const createResult = await store.set('concurrent-key', 'original');
 
       // Start two concurrent updates with the same version
       const update1Promise = store.set(
         'concurrent-key',
         'update1',
-        'string',
         undefined,
         createResult.version
       );
@@ -152,7 +150,6 @@ describe('CacheStore CAS Operations', () => {
       const update2Promise = store.set(
         'concurrent-key',
         'update2',
-        'string',
         undefined,
         createResult.version
       );
@@ -172,11 +169,11 @@ describe('CacheStore CAS Operations', () => {
     });
 
     it('should handle rapid sequential updates', async () => {
-      let currentVersion = (await store.set('rapid-key', 'v0', 'string')).version;
+      let currentVersion = (await store.set('rapid-key', 'v0')).version;
 
       // Perform 10 sequential updates
       for (let i = 1; i <= 10; i++) {
-        const result = await store.set('rapid-key', `v${i}`, 'string', undefined, currentVersion);
+        const result = await store.set('rapid-key', `v${i}`, undefined, currentVersion);
         currentVersion = result.version;
       }
 
@@ -191,14 +188,13 @@ describe('CacheStore CAS Operations', () => {
       const versions = new Set<string>();
 
       // Create and update the same key multiple times
-      let currentVersion = (await store.set('version-test', 'v1', 'string')).version;
+      let currentVersion = (await store.set('version-test', 'v1')).version;
       versions.add(currentVersion);
 
       for (let i = 2; i <= 5; i++) {
         const result = await store.set(
           'version-test',
           `v${i}`,
-          'string',
           undefined,
           currentVersion
         );
@@ -211,8 +207,8 @@ describe('CacheStore CAS Operations', () => {
     });
 
     it('should generate different versions for different keys', async () => {
-      const result1 = await store.set('key1', 'value1', 'string');
-      const result2 = await store.set('key2', 'value2', 'string');
+      const result1 = await store.set('key1', 'value1');
+      const result2 = await store.set('key2', 'value2');
 
       expect(result1.version).not.toBe(result2.version);
     });
@@ -220,13 +216,12 @@ describe('CacheStore CAS Operations', () => {
 
   describe('CAS with TTL', () => {
     it('should update TTL with CAS operation', async () => {
-      const createResult = await store.set('ttl-key', 'value', 'string', 60);
+      const createResult = await store.set('ttl-key', 'value', 60);
 
       // Update with new TTL
       const updateResult = await store.set(
         'ttl-key',
         'updated',
-        'string',
         120,
         createResult.version
       );
@@ -237,14 +232,14 @@ describe('CacheStore CAS Operations', () => {
 
     it('should handle CAS operations on expired keys', async () => {
       // Create key with very short TTL
-      const createResult = await store.set('expiring-key', 'value', 'string', 0.001);
+      const createResult = await store.set('expiring-key', 'value', 0.001);
 
       // Wait for expiration
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Try to update expired key
       await expect(
-        store.set('expiring-key', 'updated', 'string', undefined, createResult.version)
+        store.set('expiring-key', 'updated', undefined, createResult.version)
       ).rejects.toThrow(ConflictError);
     });
   });

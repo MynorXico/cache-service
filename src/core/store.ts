@@ -14,7 +14,6 @@ import {
   BatchSetResponse,
   CacheEntry,
   ShardStats,
-  ValueType,
 } from './types';
 
 export class CacheStore {

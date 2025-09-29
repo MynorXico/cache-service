@@ -120,18 +120,20 @@ describe('Batch Operations', () => {
         expect(r.error).toBeUndefined();
       });
 
-      // Verify data was actually stored
-      for (const item of items) {
+      // Verify data was actually stored with correct inferred types
+      const expectedTypes = ['string', 'number', 'boolean', 'json'];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
         const entry = await store.get(item.key);
         expect(entry?.value).toEqual(item.value);
-        expect(entry?.type).toBe(item.type);
+        expect(entry?.type).toBe(expectedTypes[i]);
       }
     });
 
     it('should handle TTL in batch operations', async () => {
       const items = [
-        { key: 'ttl:1', value: 'expires-soon', type: 'string' as const, ttlSec: 3600 },
-        { key: 'ttl:2', value: 'no-expiry', type: 'string' as const },
+        { key: 'ttl:1', value: 'expires-soon', ttlSec: 3600 },
+        { key: 'ttl:2', value: 'no-expiry' },
       ];
 
       const result = await store.batchSet({ items });

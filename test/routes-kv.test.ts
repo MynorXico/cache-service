@@ -151,8 +151,8 @@ describe('KV API Routes', () => {
         .put('/v1/kv/invalid-key')
         .set('X-API-Token', 'test-token')
         .send({
-          value: 'test',
-          // Missing required 'type' field
+          // Missing required 'value' field - this should trigger validation error
+          ttlSec: 3600
         });
 
       expect(response.status).toBe(400);

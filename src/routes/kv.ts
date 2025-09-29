@@ -64,13 +64,7 @@ export function createKvRoutes(store: CacheStore, maxItemBytes: number): Router 
       const isCreate = !existingEntry;
 
       try {
-        const result = await store.set(
-          key,
-          body.value,
-          body.ttlSec,
-          ifMatch,
-          ifNoneMatch
-        );
+        const result = await store.set(key, body.value, body.ttlSec, ifMatch, ifNoneMatch);
 
         // Record metrics - we'll infer the type from the stored entry
         const entry = await store.get(key);

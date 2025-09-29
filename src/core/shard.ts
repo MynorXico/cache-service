@@ -6,7 +6,7 @@
 import { ulid } from 'ulid';
 import { SizeAwareLRU } from './lru';
 import { MinHeap } from './minheap';
-import { CacheEntry, ShardOperation, ShardStats, ValueType } from './types';
+import { CacheEntry, ShardOperation, ShardStats } from './types';
 import { BadRequestError, ConflictError, PayloadTooLargeError } from './errors';
 import { calculateValueSize, validateInferredValue } from './validators';
 
@@ -300,7 +300,9 @@ export class CacheShard {
 
     if (existingEntry) {
       if (existingEntry.type !== 'number') {
-        throw new BadRequestError(`Cannot increment non-numeric value. Key '${key}' contains ${existingEntry.type} value, but increment requires a number.`);
+        throw new BadRequestError(
+          `Cannot increment non-numeric value. Key '${key}' contains ${existingEntry.type} value, but increment requires a number.`
+        );
       }
       currentValue = existingEntry.value as number;
     }

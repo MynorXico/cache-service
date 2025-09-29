@@ -94,7 +94,7 @@ async function runSmokeTest() {
     console.log(`Batch operations: ${batchResult.requests.total} requests, ${batchResult.latency.mean}ms avg`);
 
     // Performance assertions for CI
-    if (typeof p95Latency === 'number' && p95Latency > 50) { // Relaxed for CI environment
+    if (typeof p95Latency === "number" && p95Latency > 50) { // Relaxed for CI environment
       console.warn(`Warning: p95 latency ${p95Latency}ms exceeds 50ms threshold`);
     }
 
