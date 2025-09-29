@@ -1,0 +1,82 @@
+{
+  "name": "cache-service",
+  "version": "1.0.0",
+  "description": "Production-grade in-memory caching service with sharded architecture",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "test:ci": "vitest run",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "stress": "npm run build && node dist/scripts/stress.js",
+    "load-smoke": "node scripts/load-smoke.cjs",
+    "prepare": "husky install || true"
+  },
+  "keywords": [
+    "cache",
+    "redis",
+    "memcached",
+    "typescript",
+    "performance"
+  ],
+  "author": "Cache Service Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "pino": "^8.16.1",
+    "pino-http": "^8.5.0",
+    "prom-client": "^15.0.0",
+    "swagger-ui-express": "^5.0.0",
+    "ulid": "^2.3.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.8.10",
+    "@types/swagger-ui-express": "^4.1.6",
+    "@typescript-eslint/eslint-plugin": "^6.9.1",
+    "@typescript-eslint/parser": "^6.9.1",
+    "@vitest/coverage-v8": "^0.34.6",
+    "autocannon": "^7.12.0",
+    "eslint": "^8.53.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.0.2",
+    "prettier": "^3.0.3",
+    "supertest": "^6.3.3",
+    "tsup": "^7.2.0",
+    "tsx": "^3.14.0",
+    "typescript": "^5.2.2",
+    "vitest": "^0.34.6"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
+  "tsup": {
+    "entry": {
+      "index": "src/index.ts",
+      "scripts/stress": "scripts/stress.ts"
+    },
+    "outDir": "dist",
+    "format": [
+      "cjs"
+    ],
+    "target": "node22",
+    "clean": true,
+    "minify": false,
+    "sourcemap": true,
+    "splitting": false
+  }
+}

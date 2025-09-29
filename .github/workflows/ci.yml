@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [ 22.x ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint code
+        run: npm run lint
+
+      - name: Build application
+        run: npm run build
+
+      - name: Run unit tests
+        run: npm run test:ci
+
+      - name: Run coverage
+        run: npm run test:coverage
+
+  load-test:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Start cache service in background
+        run: |
+          export API_TOKEN=test-token-for-ci
+          export LOG_LEVEL=warn
+          npm start &
+          echo $! > cache-service.pid
+
+      - name: Wait for service to be ready
+        run: |
+          timeout 30 bash -c 'until curl -f http://localhost:8080/healthz; do sleep 1; done'
+
+      - name: Run load smoke test
+        run: npm run load-smoke
+
+      - name: Stop cache service
+        run: |
+          if [ -f cache-service.pid ]; then
+            kill $(cat cache-service.pid) || true
+          fi
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [ test, load-test ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: cache-service:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          docker run -d --name cache-test \
+            -p 8080:8080 \
+            -e API_TOKEN=test-token \
+            -e LOG_LEVEL=warn \
+            cache-service:latest
+
+          # Wait for container to be ready
+          timeout 30 bash -c 'until curl -f http://localhost:8080/healthz; do sleep 1; done'
+
+          # Basic functionality test
+          curl -X PUT http://localhost:8080/v1/kv/test \
+            -H "X-API-Token: test-token" \
+            -H "Content-Type: application/json" \
+            -d '{"value": "hello", "type": "string"}'
+
+          curl -X GET http://localhost:8080/v1/kv/test
+
+          # Cleanup
+          docker stop cache-test
+          docker rm cache-test
+
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'

@@ -1,0 +1,500 @@
+openapi: 3.0.3
+info:
+  title: Cache Service API
+  description: |
+    Production-grade in-memory caching service with sharded architecture.
+    
+    **Type Inference**: The API automatically infers value types from JavaScript/JSON types:
+    - `string` values are stored as strings
+    - `number` values are stored as numbers  
+    - `boolean` values are stored as booleans
+    - `object` and `array` values are stored as JSON
+    
+    The inferred type is returned in all GET responses for reference.
+  version: 1.0.0
+  contact:
+    name: Cache Service Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+security:
+  - ApiKeyAuth: [ ]
+
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      description: Check if the service is running
+      security: [ ]
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                  service:
+                    type: string
+                    example: cache-service
+
+  /readyz:
+    get:
+      summary: Readiness probe
+      description: Check if the service is ready to handle requests
+      security: [ ]
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ready
+                  timestamp:
+                    type: string
+                    format: date-time
+                  shards:
+                    type: integer
+                  totalEntries:
+                    type: integer
+                  memoryBytes:
+                    type: integer
+        '503':
+          description: Service not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Get Prometheus metrics for monitoring
+      security: [ ]
+      responses:
+        '200':
+          description: Metrics in Prometheus format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /v1/kv/{key}:
+    put:
+      summary: Set or update a key
+      description: Create or update a key-value pair with optional TTL and conditional headers
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 250
+        - name: If-Match
+          in: header
+          description: Version for conditional update (CAS)
+          schema:
+            type: string
+        - name: If-None-Match
+          in: header
+          description: Set to '*' for create-only operation
+          schema:
+            type: string
+            enum: [ '*' ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetRequest'
+      responses:
+        '200':
+          description: Key updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetResponse'
+        '201':
+          description: Key created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Version conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Get a key's value
+      description: Retrieve the value and metadata for a key
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: includeMeta
+          in: query
+          description: Include metadata in response
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Key found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetResponse'
+        '404':
+          description: Key not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete a key
+      description: Remove a key from the cache with optional conditional header
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: If-Match
+          in: header
+          description: Version for conditional delete
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Key deleted successfully
+        '404':
+          description: Key not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Version conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/kv/batch/get:
+    post:
+      summary: Batch get multiple keys
+      description: Retrieve multiple keys in a single request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchGetRequest'
+      responses:
+        '200':
+          description: Batch get completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchGetResponse'
+
+  /v1/kv/batch/set:
+    post:
+      summary: Batch set multiple keys
+      description: Set multiple key-value pairs in a single request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchSetRequest'
+      responses:
+        '200':
+          description: Batch set completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchSetResponse'
+
+  /v1/kv/batch/delete:
+    post:
+      summary: Batch delete multiple keys
+      description: Delete multiple keys in a single request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchDeleteRequest'
+      responses:
+        '200':
+          description: Batch delete completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchDeleteResponse'
+
+  /v1/kv/incr:
+    post:
+      summary: Atomic increment
+      description: Atomically increment a numeric value
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncrRequest'
+      responses:
+        '200':
+          description: Increment successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncrResponse'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Token
+
+  schemas:
+    ValueType:
+      type: string
+      enum: [ string, number, boolean, json, bytes ]
+
+    SetRequest:
+      type: object
+      required: [ value ]
+      properties:
+        value:
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - type: object
+            - type: array
+        ttlSec:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+
+    SetResponse:
+      type: object
+      required: [ version ]
+      properties:
+        version:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    GetResponse:
+      type: object
+      required: [ value, type, version ]
+      properties:
+        value:
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - type: object
+            - type: array
+        type:
+          $ref: '#/components/schemas/ValueType'
+        version:
+          type: string
+        ttlSec:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BatchGetRequest:
+      type: object
+      required: [ keys ]
+      properties:
+        keys:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 100
+
+    BatchGetResponse:
+      type: object
+      required: [ hits, misses ]
+      properties:
+        hits:
+          type: array
+          items:
+            type: object
+            required: [ key, value, type, version ]
+            properties:
+              key:
+                type: string
+              value:
+                oneOf:
+                  - type: string
+                  - type: number
+                  - type: boolean
+                  - type: object
+                  - type: array
+              type:
+                $ref: '#/components/schemas/ValueType'
+              version:
+                type: string
+        misses:
+          type: array
+          items:
+            type: string
+
+    BatchSetRequest:
+      type: object
+      required: [ items ]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [ key, value ]
+            properties:
+              key:
+                type: string
+              value:
+                oneOf:
+                  - type: string
+                  - type: number
+                  - type: boolean
+                  - type: object
+                  - type: array
+              ttlSec:
+                type: integer
+                minimum: 0
+          minItems: 1
+          maxItems: 100
+
+    BatchSetResponse:
+      type: object
+      required: [ results ]
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            required: [ key, status ]
+            properties:
+              key:
+                type: string
+              status:
+                type: string
+                enum: [ created, updated, skipped, error ]
+              version:
+                type: string
+              error:
+                type: string
+
+    BatchDeleteRequest:
+      type: object
+      required: [ keys ]
+      properties:
+        keys:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 100
+
+    BatchDeleteResponse:
+      type: object
+      required: [ results ]
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            required: [ key, status ]
+            properties:
+              key:
+                type: string
+              status:
+                type: string
+                enum: [ deleted, missing, error ]
+              error:
+                type: string
+
+    IncrRequest:
+      type: object
+      required: [ key, delta ]
+      properties:
+        key:
+          type: string
+        delta:
+          type: integer
+          minimum: -2147483648
+          maximum: 2147483647
+
+    IncrResponse:
+      type: object
+      required: [ value, version ]
+      properties:
+        value:
+          type: number
+        version:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required: [ error ]
+      properties:
+        error:
+          type: object
+          required: [ code, message ]
+          properties:
+            code:
+              type: string
+              enum: [ CONFLICT, NOT_FOUND, BAD_REQUEST, PAYLOAD_TOO_LARGE, UNAUTHORIZED, INTERNAL ]
+            message:
+              type: string
+            details:
+              type: object
